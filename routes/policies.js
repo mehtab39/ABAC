@@ -23,10 +23,12 @@ router.post('/', async (req, res) => {
   };
 
   try {
-    await ddbDocClient.send(new PutCommand({
+     await ddbDocClient.send(new PutCommand({
       TableName: process.env.POLICY_TABLE_NAME,
       Item: item
     }));
+
+
 
     res.status(201).json({ message: 'Policy created', id });
   } catch (err) {

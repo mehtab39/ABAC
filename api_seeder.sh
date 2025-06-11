@@ -55,6 +55,24 @@ curl -s -X POST $BASE_URL/policies -H "$CONTENT_TYPE" -d '{
   "updatedAt": "2025-06-11T13:50:00.000Z"
 }'
 
+
+curl -s -X POST $BASE_URL/policies -H "$CONTENT_TYPE" -d '{
+  "id": "future-commodity-view-policy",
+  "name": "Future Commodity View Policy",
+  "description": "Allows viewing commodities only if createdAt is in the future",
+  "rules": [
+    {
+      "permissionKey": "Commodity.view",
+      "conditions": {
+        "createdAt": { "$gt": "${env.time}" }
+      }
+    }
+  ],
+   "createdAt": "2025-06-11T13:50:00.000Z",
+  "updatedAt": "2025-06-11T13:50:00.000Z"
+}'
+
+
 curl -s -X POST $BASE_URL/policies -H "$CONTENT_TYPE" -d '{
   "id": "multi-state-ops",
   "name": "Operation State Policy",
@@ -79,10 +97,12 @@ curl -s -X POST $BASE_URL/roles -H "$CONTENT_TYPE" -d '{ "name": "ops_manager" }
 # --- 4. Attach Policies to Roles ---
 echo "Attaching policies to roles..."
 curl -s -X POST $BASE_URL/role-policies -H "$CONTENT_TYPE" -d '{ "roleId": 1, "policyId": "admin-policy" }'
-curl -s -X POST $BASE_URL/role-policies -H "$CONTENT_TYPE" -d '{ "roleId": 2, "policyId": "regional-manager-policy" }'
+curl -s -X POST $BASE_URL/role-policies -H "$CONTENT_TYPE" -d '{ "roleId": 2, "policyId": "future-commodity-view-policy" }'
 curl -s -X POST $BASE_URL/role-policies -H "$CONTENT_TYPE" -d '{ "roleId": 3, "policyId": "restricted-policy" }'
 curl -s -X POST $BASE_URL/role-policies -H "$CONTENT_TYPE" -d '{ "roleId": 4, "policyId": "multi-state-ops" }'
 curl -s -X POST $BASE_URL/role-policies -H "$CONTENT_TYPE" -d '{ "roleId": 4, "policyId": "restricted-policy" }'
+curl -s -X POST $BASE_URL/role-policies -H "$CONTENT_TYPE" -d '{ "roleId": 2, "policyId": "restricted-policy" }'
+
 
 # --- 5. Seed Users ---
 echo "Seeding users..."
@@ -98,10 +118,22 @@ curl -s -X POST $BASE_URL/auth/2/attributes -H "$CONTENT_TYPE" -d '{"region": "R
 curl -s -X POST $BASE_URL/auth/3/attributes -H "$CONTENT_TYPE" -d '{"region": "Uttar Pradesh", "department": "Audit"}'
 curl -s -X POST $BASE_URL/auth/4/attributes -H "$CONTENT_TYPE" -d '{"region": "Madhya Pradesh", "department": "Operations"}'
 
-# --- 7. Create Resources for Reference UI ---
-echo "Creating resource metadata..."
-curl -s -X POST $BASE_URL/resources -H "$CONTENT_TYPE" -d '{"name": "Order", "description": "Handles customer and seller orders"}'
-curl -s -X POST $BASE_URL/resources -H "$CONTENT_TYPE" -d '{"name": "User", "description": "Manages platform users"}'
-curl -s -X POST $BASE_URL/resources -H "$CONTENT_TYPE" -d '{"name": "Commodity", "description": "Catalog of agricultural commodities"}'
+
+# --- 7. Get Admin Token ---
+echo "Logging in as admin to get token..."
+ADMIN_TOKEN=$(curl -s -X POST $BASE_URL/auth/login -H "$CONTENT_TYPE" -d '{"username": "admin_user", "password": "password123"}' | jq -r '.token')
+
+if [ "$ADMIN_TOKEN" = "null" ] || [ -z "$ADMIN_TOKEN" ]; then
+  echo "❌ Failed to get admin token. Exiting..."
+  exit 1
+fi
+
+AUTH_HEADER="Authorization: Bearer $ADMIN_TOKEN"
+
+# --- 8. Create Resources for Reference UI ---
+echo "Creating resource metadata with admin token..."
+curl -s -X POST $BASE_URL/resources -H "$CONTENT_TYPE" -H "$AUTH_HEADER" -d '{"name": "Order", "description": "Handles customer and seller orders"}'
+curl -s -X POST $BASE_URL/resources -H "$CONTENT_TYPE" -H "$AUTH_HEADER" -d '{"name": "User", "description": "Manages platform users"}'
+curl -s -X POST $BASE_URL/resources -H "$CONTENT_TYPE" -H "$AUTH_HEADER" -d '{"name": "Commodity", "description": "Catalog of agricultural commodities"}'
 
 echo "✅ Seeding completed."

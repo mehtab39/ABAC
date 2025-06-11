@@ -101,7 +101,9 @@ async function attachUserContext(user) {
     const roleId = user.role_id;
     const policies = await getPoliciesForRoleCached(roleId);
     const userAttributes = await getAttributes(user.id);
-    const ability = defineAbilityFor(policies, { user: userAttributes });
+    const ability = defineAbilityFor(policies, { user: userAttributes, env: {
+        time: new Date().toISOString()
+    } });
 
     return {
         id: user.id,

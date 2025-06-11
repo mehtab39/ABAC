@@ -48,7 +48,8 @@ CREATE TABLE IF NOT EXISTS user_attributes (
     CREATE TABLE IF NOT EXISTS resources (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,
-      description TEXT
+      description TEXT,
+      createdAt TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `);
 
