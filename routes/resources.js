@@ -5,7 +5,7 @@ const router = express.Router();
 router.post('/', (req, res) => {
     const { name, description } = req.body;
 
-    if (!req.userContext.ability.can('create', 'Order')) {
+    if (!req.userContext.ability.can('update', { __type: 'Order', region: 'Rajasthan' })) {
         return res.status(403).json({ error: 'You are not allowed bro!' });
     }
 

@@ -69,11 +69,7 @@ module.exports = router;
 
 
 // export interface PolicyRule {
-//     /** The action the rule applies to (e.g., "create", "read", "delete") */
-//     action: string | string[];
-  
-//     /** The subject the rule applies to (e.g., "Order", "User") */
-//     subject: string;
+//    permissionKey?: string;
   
 //     /**
 //      * Mongo-like query conditions for ABAC-style permissions.

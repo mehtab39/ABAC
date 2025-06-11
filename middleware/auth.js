@@ -5,22 +5,23 @@ const ddbDocClient = require('../utils/dynamoClient');
 const { defineAbilityFor } = require('../casl/defineAbility');
 
 const redisClient = require('../cache/redis');
+const { getAttributes } = require('../services/user');
 
 async function getPoliciesForRoleCached(roleId) {
-  const cacheKey = `role:${roleId}:policies`;
+    const cacheKey = `role:${roleId}:policies`;
 
-  const cached = await redisClient.get(cacheKey);
-  if (cached) {
-    return JSON.parse(cached);
-  }
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+        return JSON.parse(cached);
+    }
 
-  const policyKeys = await getPoliciesForRole(roleId);
-  const policies = await getPolicyDetails(policyKeys);
+    const policyKeys = await getPoliciesForRole(roleId);
+    const policies = await getPolicyDetails(policyKeys);
 
-  // Store in Redis for 10 minutes
-  await redisClient.set(cacheKey, JSON.stringify(policies), { EX: 600 });
+    // Store in Redis for 10 minutes
+    await redisClient.set(cacheKey, JSON.stringify(policies), { EX: 600 });
 
-  return policies;
+    return policies;
 }
 
 
@@ -44,20 +45,63 @@ async function getPolicyDetails(policyIds) {
     const result = await ddbDocClient.send(
         new BatchGetCommand({
             RequestItems: {
-                'fmt-dev-tech-rbac-policies': {
+                [process.env.POLICY_TABLE_NAME]: {
                     Keys: keys
                 }
             }
         })
     );
 
-    return result.Responses?.['fmt-dev-tech-rbac-policies'] || [];
+    const policies = result.Responses?.[process.env.POLICY_TABLE_NAME] || [];
+
+    const permissionKeys = new Set();
+    for (const policy of policies) {
+        for (const rule of policy.rules || []) {
+            if (rule.permissionKey) {
+                permissionKeys.add(rule.permissionKey);
+            }
+        }
+    }
+
+    const permissionResult = await ddbDocClient.send(
+        new BatchGetCommand({
+            RequestItems: {
+                [process.env.PERMSSION_TABLE_NAME]: {
+                    Keys: [...permissionKeys].map(key => ({ key }))
+                }
+            }
+        })
+    );
+
+    const permissions = permissionResult.Responses?.[process.env.PERMSSION_TABLE_NAME] || [];
+    const permissionMap = Object.fromEntries(permissions.map(p => [p.key, p]));
+
+    const resolvedPolicies = policies.map(policy => ({
+        ...policy,
+        rules: (policy.rules || []).map(rule => {
+            const perm = permissionMap[rule.permissionKey];
+            if (!perm) {
+                console.warn(`Permission not found for key: ${rule.permissionKey}`);
+                return null;
+            }
+            return {
+                action: perm.action,
+                subject: perm.entity,
+                conditions: rule.conditions,
+                inverted: rule.inverted,
+                reason: rule.reason
+            };
+        }).filter(Boolean)
+    }));
+
+    return resolvedPolicies;
 }
 
 async function attachUserContext(user) {
     const roleId = user.role_id;
     const policies = await getPoliciesForRoleCached(roleId);
-    const ability = defineAbilityFor(policies);
+    const userAttributes = await getAttributes(user.id);
+    const ability = defineAbilityFor(policies, { user: userAttributes });
 
     return {
         id: user.id,

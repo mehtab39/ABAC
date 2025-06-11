@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../database/db');
+const { getAttributes } = require('../services/user');
 const router = express.Router();
 
 router.post('/register', async (req, res) => {
@@ -79,23 +80,37 @@ router.put('/:id/role', (req, res) => {
 router.post('/:id/attributes', (req, res) => {
     const { region, department } = req.body;
     const { id: userId } = req.params;
-  
+
     db.get(`SELECT id FROM users WHERE id = ?`, [userId], (err, user) => {
-      if (err || !user) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-  
-      db.run(`
+        if (err || !user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        db.run(`
         INSERT INTO user_attributes (user_id, region, department)
         VALUES (?, ?, ?)
         ON CONFLICT(user_id) DO UPDATE SET region = excluded.region, department = excluded.department
       `, [userId, region, department], function (err) {
-        if (err) {
-          return res.status(500).json({ error: 'DB error' });
-        }
-  
-        res.json({ message: 'Attributes saved', userId, region, department });
-      });
+            if (err) {
+                return res.status(500).json({ error: 'DB error' });
+            }
+
+            res.json({ message: 'Attributes saved', userId, region, department });
+        });
     });
-  });
+});
+
+
+
+// GET /auth/:id/attributes
+router.get('/:id/attributes', (req, res) => {
+    const { id: userId } = req.params;
+
+    getAttributes(userId).then(res.json).catch((err) => {
+        return res.status(500).json({ error: err.message });
+    })
+
+});
+
+
 module.exports = router;
