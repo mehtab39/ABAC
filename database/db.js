@@ -33,6 +33,26 @@ db.serialize(() => {
     )
   `);
 
+    db.run(`
+CREATE TABLE IF NOT EXISTS user_attributes (
+  user_id INTEGER PRIMARY KEY,
+  region TEXT,
+  department TEXT,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+    
+`)
+
+    db.run(`
+    CREATE TABLE IF NOT EXISTS resources (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      description TEXT
+    )
+  `);
+
+
 });
 
 

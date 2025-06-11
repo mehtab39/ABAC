@@ -74,4 +74,28 @@ router.put('/:id/role', (req, res) => {
     });
 });
 
+
+// Upsert user attributes
+router.post('/:id/attributes', (req, res) => {
+    const { region, department } = req.body;
+    const { id: userId } = req.params;
+  
+    db.get(`SELECT id FROM users WHERE id = ?`, [userId], (err, user) => {
+      if (err || !user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+  
+      db.run(`
+        INSERT INTO user_attributes (user_id, region, department)
+        VALUES (?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET region = excluded.region, department = excluded.department
+      `, [userId, region, department], function (err) {
+        if (err) {
+          return res.status(500).json({ error: 'DB error' });
+        }
+  
+        res.json({ message: 'Attributes saved', userId, region, department });
+      });
+    });
+  });
 module.exports = router;

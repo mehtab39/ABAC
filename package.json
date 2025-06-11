@@ -16,11 +16,13 @@
     "@aws-sdk/client-dynamodb": "^3.826.0",
     "@aws-sdk/credential-providers": "^3.826.0",
     "@aws-sdk/lib-dynamodb": "^3.826.0",
+    "@casl/ability": "^6.7.3",
     "aws-sdk": "^2.1692.0",
     "bcryptjs": "^3.0.2",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
+    "redis": "^5.5.6",
     "sqlite3": "^5.1.7"
   },
   "devDependencies": {

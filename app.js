@@ -5,11 +5,12 @@ const permissionRoutes = require('./routes/permissions');
 const policiesRoutes = require('./routes/policies');
 const rolesRoutes = require('./routes/roles');
 const rolePoliciesRoutes = require('./routes/rolePolicies');
+const resourceRoutes = require('./routes/resources');
+
 
 const app = express();
 app.use(express.json());
 
-app.use('/api/auth', authRoutes);
 
 const authenticateToken = require('./middleware/auth');
 
@@ -21,11 +22,14 @@ app.get('/api/protected', authenticateToken, (req, res) => {
 });
 
 
-app.use(express.json()); // required to parse JSON body
-app.use('/api/permissions', permissionRoutes);
+app.use('/auth', authRoutes);
+
+app.use('/permissions', permissionRoutes);
 app.use('/policies', policiesRoutes);
 app.use('/roles', rolesRoutes);
 app.use('/role-policies', rolePoliciesRoutes);
+app.use('/resources',authenticateToken, resourceRoutes);
+
 
 
 
