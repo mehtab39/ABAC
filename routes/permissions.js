@@ -12,7 +12,7 @@ router.post('/', async (req, res) => {
   const key = `${entity}.${action}`;
   try {
     await ddbDocClient.send(new PutCommand({
-      TableName: "fmt-dev-tech-rbac-permissions",
+      TableName: process.env.PERMSSION_TABLE_NAME,
       Item: { key, entity, action, description: description || "" }
     }));
     res.status(201).json({ key });
