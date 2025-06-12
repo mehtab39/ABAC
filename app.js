@@ -11,6 +11,10 @@ const resourceRoutes = require('./routes/resources');
 const app = express();
 app.use(express.json());
 
+const cors = require('cors');
+
+app.use(cors()); 
+
 
 const authenticateToken = require('./middleware/auth');
 

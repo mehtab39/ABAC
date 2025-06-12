@@ -1,5 +1,4 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../database/db');
 const { getAttributes } = require('../services/user');
@@ -7,27 +6,41 @@ const router = express.Router();
 
 router.post('/register', async (req, res) => {
     const { username, password, roleId } = req.body;
-    const hashedPassword = await bcrypt.hash(password, 10);
 
     if (roleId) {
-        // Validate that the role exists
         db.get(`SELECT id FROM roles WHERE id = ?`, [roleId], (err, role) => {
             if (err || !role) {
                 return res.status(400).json({ error: 'Invalid roleId' });
             }
-
-            createUser(username, hashedPassword, roleId, res);
+            createUser(username, password, roleId, res);
         });
     } else {
-        // No role provided
-        createUser(username, hashedPassword, null, res);
+        createUser(username, password, null, res);
     }
 });
 
-function createUser(username, hashedPassword, roleId, res) {
+router.delete('/:id', (req, res) => {
+    const { id } = req.params;
+
+    db.run(`DELETE FROM users WHERE id = ?`, [id], function (err) {
+        if (err) {
+            return res.status(500).json({ error: 'DB error while deleting user' });
+        }
+
+        if (this.changes === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.json({ message: 'User deleted', userId: id });
+    });
+});
+
+
+
+function createUser(username, password, roleId, res) {
     db.run(
         `INSERT INTO users(username, password, role_id) VALUES(?, ?, ?)`,
-        [username, hashedPassword, roleId],
+        [username, password, roleId],
         function (err) {
             if (err) {
                 return res.status(500).json({ error: 'User already exists or DB error' });
@@ -40,19 +53,24 @@ function createUser(username, hashedPassword, roleId, res) {
 router.post('/login', (req, res) => {
     const { username, password } = req.body;
 
-    db.get(`SELECT * FROM users WHERE username = ?`, [username], async (err, user) => {
-        if (err || !user) return res.status(401).json({ error: 'Invalid credentials' });
+    db.get(`SELECT * FROM users WHERE username = ?`, [username], (err, user) => {
+        if (err || !user) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+        if (password !== user.password) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
 
-        const valid = await bcrypt.compare(password, user.password);
-        if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
-
-        const token = jwt.sign({ id: user.id, username: user.username, role_id: user.role_id }, process.env.JWT_SECRET, {
-            expiresIn: '1h',
-        });
+        const token = jwt.sign(
+            { id: user.id, username: user.username, role_id: user.role_id },
+            process.env.JWT_SECRET,
+            { expiresIn: '1h' }
+        );
 
         res.json({ token });
     });
 });
+
 
 
 router.put('/:id/role', (req, res) => {
@@ -103,14 +121,31 @@ router.post('/:id/attributes', (req, res) => {
 
 
 // GET /auth/:id/attributes
-router.get('/:id/attributes', (req, res) => {
-    const { id: userId } = req.params;
+router.get('/:id/attributes', async (req, res) => {
 
-    getAttributes(userId).then(res.json).catch((err) => {
-        return res.status(500).json({ error: err.message });
-    })
+    try {
+        const { id: userId } = req.params;
+
+        const attributes = await getAttributes(userId);
+
+        res.json(attributes);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 
 });
+
+
+router.get('/all-users', (req, res) => {
+    db.all(`SELECT id, username, password, role_id FROM users`, [], (err, rows) => {
+        if (err) {
+            return res.status(500).json({ error: 'DB error' });
+        }
+
+        res.json(rows);
+    });
+});
+
 
 
 module.exports = router;
