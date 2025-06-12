@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # --- BASE CONFIG ---
-BASE_URL="http://localhost:3000"
+BASE_URL="http://localhost:5000"
 CONTENT_TYPE="Content-Type: application/json"
 
 # --- 1. Seed Permissions ---
