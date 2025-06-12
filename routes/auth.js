@@ -25,11 +25,11 @@ router.delete('/:id', authenticateToken, (req, res) => {
 
     const canDelete = req.userContext.ability.can('delete', { __type: 'user', id });
 
-    if(!canDelete){
+    if (!canDelete) {
         return res.status(403).json({ error: 'Not allowed to delete' });
     }
 
-    
+
 
     db.run(`DELETE FROM users WHERE id = ?`, [id], function (err) {
         if (err) {
@@ -150,6 +150,11 @@ router.get('/:id/attributes', authenticateToken, async (req, res) => {
 });
 
 
+router.get('/permissions', authenticateToken, (req, res) => {
+        res.json({success: 'ok'})
+});
+
+
 router.get('/all-users', authenticateToken, (req, res) => {
     db.all(`SELECT id, username, password, role_id FROM users`, [], (err, rows) => {
 
@@ -168,6 +173,7 @@ router.get('/all-users', authenticateToken, (req, res) => {
         res.json(rows)
     });
 });
+
 
 
 

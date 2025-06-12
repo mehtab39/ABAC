@@ -1,17 +1,12 @@
 const { AbilityBuilder, createMongoAbility } = require('@casl/ability');
-const interpolate = require('interpolate-object');
 
-function defineAbilityFor(policies = [], attributes) {
+function defineAbilityFor(permissions = []) {
 
     const { can, cannot, build } = new AbilityBuilder(createMongoAbility);
 
-    for (const policy of policies) {
-        for (const rule of policy.rules || []) {
-            const method = rule.inverted ? cannot : can;
-            const pattern = /\$\{(.+?)\}/g;
-            const conditions = interpolate(rule.conditions, attributes, pattern);
-            method.call(null, rule.action, rule.subject, conditions);
-        }
+    for (const permission of permissions) {
+        const method = permission.inverted ? cannot : can;
+        method.call(null, permission.action, permission.subject, permission.conditions);
     }
 
     return build({
