@@ -16,4 +16,13 @@ function getAttributes(userId) {
     })
 }
 
-module.exports = {getAttributes}
+
+async function getAttributesSafely(userId) {
+    try {
+        return await getAttributes(userId)
+    } catch (err) {
+        return {}
+    }
+}
+
+module.exports = { getAttributes , getAttributesSafely}

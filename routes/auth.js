@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const db = require('../database/db');
 const { getAttributes } = require('../services/user');
 const router = express.Router();
+const authenticateToken = require('../middleware/auth');
 
 router.post('/register', async (req, res) => {
     const { username, password, roleId } = req.body;
@@ -19,7 +20,7 @@ router.post('/register', async (req, res) => {
     }
 });
 
-router.delete('/:id', (req, res) => {
+router.delete('/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
 
     db.run(`DELETE FROM users WHERE id = ?`, [id], function (err) {
@@ -73,7 +74,7 @@ router.post('/login', (req, res) => {
 
 
 
-router.put('/:id/role', (req, res) => {
+router.put('/:id/role', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { roleId } = req.body;
 
@@ -95,13 +96,19 @@ router.put('/:id/role', (req, res) => {
 
 
 // Upsert user attributes
-router.post('/:id/attributes', (req, res) => {
+router.post('/:id/attributes', authenticateToken, (req, res) => {
     const { region, department } = req.body;
     const { id: userId } = req.params;
 
     db.get(`SELECT id FROM users WHERE id = ?`, [userId], (err, user) => {
         if (err || !user) {
             return res.status(404).json({ error: 'User not found' });
+        }
+
+        const canUpdateUser = req.userContext.ability.can('update', { __type: 'user', ...user, id: String(user.id) });
+
+        if (!canUpdateUser) {
+            return res.status(403).json({ error: 'Not allowed to update user' });
         }
 
         db.run(`
@@ -121,7 +128,7 @@ router.post('/:id/attributes', (req, res) => {
 
 
 // GET /auth/:id/attributes
-router.get('/:id/attributes', async (req, res) => {
+router.get('/:id/attributes', authenticateToken, async (req, res) => {
 
     try {
         const { id: userId } = req.params;
@@ -136,13 +143,22 @@ router.get('/:id/attributes', async (req, res) => {
 });
 
 
-router.get('/all-users', (req, res) => {
+router.get('/all-users', authenticateToken, (req, res) => {
     db.all(`SELECT id, username, password, role_id FROM users`, [], (err, rows) => {
+
         if (err) {
             return res.status(500).json({ error: 'DB error' });
         }
 
-        res.json(rows);
+        // CHALLENGE:MG MUTLIPLE CHECKS AND ALSO NOT ABLE TO FETCH ONLY ROWS REQUESTED
+        const canViewAllUsers = req.userContext.ability.can('read', { __type: 'users.list' });
+
+        if (!canViewAllUsers) {
+            // CHALLENGE:MG FORCED TYPE CASTING
+            rows = rows.filter((row) => req.userContext.ability.can('read', { __type: 'users.list', ...row, id: String(row.id) }))
+        }
+
+        res.json(rows)
     });
 });
 

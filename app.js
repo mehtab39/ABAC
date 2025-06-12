@@ -18,16 +18,8 @@ app.use(cors());
 
 const authenticateToken = require('./middleware/auth');
 
-app.get('/api/protected', authenticateToken, (req, res) => {
-  res.json({
-    message: 'You have accessed a protected route',
-    user: req.user
-  });
-});
-
 
 app.use('/auth', authRoutes);
-
 app.use('/permissions', permissionRoutes);
 app.use('/policies', policiesRoutes);
 app.use('/roles', rolesRoutes);

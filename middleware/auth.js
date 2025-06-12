@@ -5,7 +5,7 @@ const ddbDocClient = require('../utils/dynamoClient');
 const { defineAbilityFor } = require('../casl/defineAbility');
 
 const redisClient = require('../cache/redis');
-const { getAttributes } = require('../services/user');
+const { getAttributesSafely } = require('../services/user');
 
 async function getPoliciesForRoleCached(roleId) {
     const cacheKey = `role:${roleId}:policies`;
@@ -100,8 +100,8 @@ async function getPolicyDetails(policyIds) {
 async function attachUserContext(user) {
     const roleId = user.role_id;
     const policies = await getPoliciesForRoleCached(roleId);
-    const userAttributes = await getAttributes(user.id);
-    const ability = defineAbilityFor(policies, { user: userAttributes, env: {
+    const userAttributes = await getAttributesSafely(user.id);
+    const ability = defineAbilityFor(policies, { user: {...user, ...userAttributes}, env: {
         time: new Date().toISOString()
     } });
 
