@@ -44,12 +44,28 @@ CREATE TABLE IF NOT EXISTS user_attributes (
     
 `)
 
+
     db.run(`
-    CREATE TABLE IF NOT EXISTS resources (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      description TEXT,
-      createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+    CREATE TABLE IF NOT EXISTS policies (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  rules_json TEXT NOT NULL,      -- serialized JSON array of rules
+  created_at TEXT NOT NULL,      -- ISO datetime
+  updated_at TEXT NOT NULL
+);
+
+
+    
+`)
+
+
+    db.run(`
+    CREATE TABLE IF NOT EXISTS permissions (
+      key TEXT PRIMARY KEY,
+      entity TEXT NOT NULL,
+      action TEXT NOT NULL,
+      description TEXT DEFAULT ''
     )
   `);
 
