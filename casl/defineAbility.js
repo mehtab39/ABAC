@@ -6,7 +6,7 @@ function defineAbilityFor(permissions = []) {
 
     for (const permission of permissions) {
         const method = permission.inverted ? cannot : can;
-        method.call(null, permission.action, permission.subject, permission.conditions);
+        method.call(null, permission.action, permission.subject, undefined, permission.conditions);
     }
 
     return build({

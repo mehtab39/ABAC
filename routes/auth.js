@@ -166,8 +166,7 @@ router.get('/all-users', authenticateToken, (req, res) => {
         const canViewAllUsers = req.userContext.ability.can('read', { __type: 'users.list' });
 
         if (!canViewAllUsers) {
-            // CHALLENGE:MG FORCED TYPE CASTING
-            rows = rows.filter((row) => req.userContext.ability.can('read', { __type: 'users.list', ...row, id: String(row.id) }))
+            rows = rows.filter((row) => req.userContext.ability.can('read', { __type: 'users.list', ...row }))
         }
 
         res.json(rows)
