@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const {RolePolicy} = require('../models');
+const { invalidatePermissionsForRole } = require('../cache/invalidation');
 
 // Attach policy to role
 router.post('/', async (req, res) => {
@@ -18,6 +19,8 @@ router.post('/', async (req, res) => {
     if (!created) {
       return res.status(409).json({ error: 'Role-policy pair already exists' });
     }
+
+    await invalidatePermissionsForRole(roleId);
 
     res.status(201).json({ message: 'Policy attached to role', id: entry.id });
   } catch (err) {
@@ -71,9 +74,11 @@ router.delete('/', async (req, res) => {
       where: { role_id: roleId, policy_id: policyId }
     });
 
+   
     if (deleted === 0) {
       return res.status(404).json({ error: 'Role-policy pair not found' });
     }
+    await invalidatePermissionsForRole(roleId);
 
     res.json({ message: 'Policy detached from role' });
   } catch (err) {

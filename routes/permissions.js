@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Permission } = require('../models');
+const { invalidatePermissionKey } = require('../cache/invalidation');
 
 // Create a permission
 router.post('/', async (req, res) => {
@@ -57,6 +58,8 @@ router.put('/:key', async (req, res) => {
 
         if (!updated) return res.status(404).json({ error: 'Permission not found' });
 
+        await invalidatePermissionKey(req.params.key);
+
         res.status(200).json({ message: 'Permission updated' });
     } catch (err) {
         console.error('Sequelize Error:', err);
@@ -70,6 +73,8 @@ router.delete('/:key', async (req, res) => {
         const deleted = await Permission.destroy({ where: { key: req.params.key } });
 
         if (!deleted) return res.status(404).json({ error: 'Permission not found' });
+
+        await invalidatePermissionKey(req.params.key);
 
         res.status(200).json({ message: 'Permission deleted' });
     } catch (err) {

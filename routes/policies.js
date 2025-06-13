@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const {Policy} = require('../models');
+const { invalidatePolicyCache } = require('../cache/invalidation');
 
 // CREATE
 router.post('/', async (req, res) => {
@@ -88,6 +89,8 @@ router.put('/:id', async (req, res) => {
 
     if (updated[0] === 0) return res.status(404).json({ error: 'Policy not found' });
 
+    await invalidatePolicyCache(req.params.id);
+
     res.json({ message: 'Policy updated', id: req.params.id });
   } catch (err) {
     console.error('Sequelize Error:', err);
@@ -101,6 +104,8 @@ router.delete('/:id', async (req, res) => {
     const deleted = await Policy.destroy({ where: { id: req.params.id } });
 
     if (!deleted) return res.status(404).json({ error: 'Policy not found' });
+
+    await invalidatePolicyCache(req.params.id);
 
     res.json({ message: 'Policy deleted', id: req.params.id });
   } catch (err) {
