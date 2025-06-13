@@ -1,109 +1,112 @@
 const express = require('express');
-const db = require('../database/db');
 const router = express.Router();
-
+const {Policy} = require('../models');
 
 // CREATE
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   const { id, name, description = '', rules = [] } = req.body;
   if (!id || !name || !Array.isArray(rules)) {
     return res.status(400).json({ error: 'id, name, and rules[] are required' });
   }
 
   const now = new Date().toISOString();
-  const stmt = `
-    INSERT INTO policies (id, name, description, rules_json, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `;
 
-  db.run(stmt, [id, name, description, JSON.stringify(rules), now, now], function (err) {
-    if (err) {
-      console.error('SQLite Error:', err);
-      return res.status(500).json({ error: 'Could not store policy' });
-    }
+  try {
+    await Policy.create({
+      id,
+      name,
+      description,
+      rules_json: JSON.stringify(rules),
+      created_at: now,
+      updated_at: now
+    });
+
     res.status(201).json({ message: 'Policy created', id });
-  });
+  } catch (err) {
+    console.error('Sequelize Error:', err);
+    res.status(500).json({ error: 'Could not store policy' });
+  }
 });
 
 // READ ALL
-router.get('/', (req, res) => {
-  db.all('SELECT * FROM policies', [], (err, rows) => {
-    if (err) {
-      console.error('SQLite Error:', err);
-      return res.status(500).json({ error: 'Could not fetch policies' });
-    }
-    const policies = rows.map(row => ({
+router.get('/', async (req, res) => {
+  try {
+    const policies = await Policy.findAll();
+
+    res.json(policies.map(row => ({
       id: row.id,
       name: row.name,
       description: row.description,
       rules: JSON.parse(row.rules_json),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
-    }));
-    res.json(policies);
-  });
+    })));
+  } catch (err) {
+    console.error('Sequelize Error:', err);
+    res.status(500).json({ error: 'Could not fetch policies' });
+  }
 });
 
-// READ by ID
-router.get('/:id', (req, res) => {
-  const { id } = req.params;
-  db.get('SELECT * FROM policies WHERE id = ?', [id], (err, row) => {
-    if (err) {
-      console.error('SQLite Error:', err);
-      return res.status(500).json({ error: 'Could not fetch policy' });
-    }
-    if (!row) return res.status(404).json({ error: 'Policy not found' });
+// READ BY ID
+router.get('/:id', async (req, res) => {
+  try {
+    const policy = await Policy.findByPk(req.params.id);
+    if (!policy) return res.status(404).json({ error: 'Policy not found' });
 
     res.json({
-      id: row.id,
-      name: row.name,
-      description: row.description,
-      rules: JSON.parse(row.rules_json),
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
+      id: policy.id,
+      name: policy.name,
+      description: policy.description,
+      rules: JSON.parse(policy.rules_json),
+      createdAt: policy.created_at,
+      updatedAt: policy.updated_at,
     });
-  });
+  } catch (err) {
+    console.error('Sequelize Error:', err);
+    res.status(500).json({ error: 'Could not fetch policy' });
+  }
 });
 
 // UPDATE
-router.put('/:id', (req, res) => {
-  const { id } = req.params;
+router.put('/:id', async (req, res) => {
   const { name, description = '', rules = [] } = req.body;
 
   if (!name || !Array.isArray(rules)) {
     return res.status(400).json({ error: 'name and rules[] are required' });
   }
 
-  const now = new Date().toISOString();
-  const stmt = `
-    UPDATE policies
-    SET name = ?, description = ?, rules_json = ?, updated_at = ?
-    WHERE id = ?
-  `;
+  try {
+    const updated = await Policy.update(
+      {
+        name,
+        description,
+        rules_json: JSON.stringify(rules),
+        updated_at: new Date().toISOString()
+      },
+      { where: { id: req.params.id } }
+    );
 
-  db.run(stmt, [name, description, JSON.stringify(rules), now, id], function (err) {
-    if (err) {
-      console.error('SQLite Error:', err);
-      return res.status(500).json({ error: 'Could not update policy' });
-    }
-    if (this.changes === 0) return res.status(404).json({ error: 'Policy not found' });
+    if (updated[0] === 0) return res.status(404).json({ error: 'Policy not found' });
 
-    res.json({ message: 'Policy updated', id });
-  });
+    res.json({ message: 'Policy updated', id: req.params.id });
+  } catch (err) {
+    console.error('Sequelize Error:', err);
+    res.status(500).json({ error: 'Could not update policy' });
+  }
 });
 
 // DELETE
-router.delete('/:id', (req, res) => {
-  const { id } = req.params;
-  db.run('DELETE FROM policies WHERE id = ?', [id], function (err) {
-    if (err) {
-      console.error('SQLite Error:', err);
-      return res.status(500).json({ error: 'Could not delete policy' });
-    }
-    if (this.changes === 0) return res.status(404).json({ error: 'Policy not found' });
+router.delete('/:id', async (req, res) => {
+  try {
+    const deleted = await Policy.destroy({ where: { id: req.params.id } });
 
-    res.json({ message: 'Policy deleted', id });
-  });
+    if (!deleted) return res.status(404).json({ error: 'Policy not found' });
+
+    res.json({ message: 'Policy deleted', id: req.params.id });
+  } catch (err) {
+    console.error('Sequelize Error:', err);
+    res.status(500).json({ error: 'Could not delete policy' });
+  }
 });
 
 module.exports = router;

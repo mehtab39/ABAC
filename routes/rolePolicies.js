@@ -1,114 +1,97 @@
 const express = require('express');
-const db = require('../database/db');
 const router = express.Router();
+const {RolePolicy} = require('../models');
 
-/**
- * Attach a policy to a role
- */
-router.post('/', (req, res) => {
+// Attach policy to role
+router.post('/', async (req, res) => {
   const { roleId, policyId } = req.body;
 
   if (!roleId || !policyId) {
     return res.status(400).json({ error: 'roleId and policyId are required' });
   }
 
-  const stmt = db.prepare(`
-    INSERT INTO role_policies (role_id, policy_id) VALUES (?, ?)
-  `);
+  try {
+    const [entry, created] = await RolePolicy.findOrCreate({
+      where: { role_id: roleId, policy_id: policyId }
+    });
 
-  stmt.run(roleId, policyId, function (err) {
-    if (err) {
-      if (err.code === 'SQLITE_CONSTRAINT') {
-        return res.status(409).json({ error: 'Role-policy pair already exists or does not exist' });
-      }
-      return res.status(500).json({ error: 'Failed to attach policy to role' });
+    if (!created) {
+      return res.status(409).json({ error: 'Role-policy pair already exists' });
     }
 
-    res.status(201).json({ message: 'Policy attached to role', id: this.lastID });
-  });
+    res.status(201).json({ message: 'Policy attached to role', id: entry.id });
+  } catch (err) {
+    console.error('Sequelize Error:', err);
+    res.status(500).json({ error: 'Failed to attach policy to role' });
+  }
 });
 
-/**
- * Get all policy IDs attached to a role
- */
-router.get('/role/:roleId', (req, res) => {
+// Get all policy IDs attached to a role
+router.get('/role/:roleId', async (req, res) => {
   const { roleId } = req.params;
 
-  const stmt = `
-    SELECT policy_id FROM role_policies WHERE role_id = ?
-  `;
+  try {
+    const entries = await RolePolicy.findAll({
+      where: { role_id: roleId },
+      attributes: ['policy_id']
+    });
 
-  db.all(stmt, [roleId], (err, rows) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).json({ error: 'Failed to fetch policies for role' });
-    }
-
-    res.json(rows); // returns [{ policy_id: 'abc123' }, ...]
-  });
+    res.json(entries);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch policies for role' });
+  }
 });
 
-/**
- * Get all role IDs that have a specific policy
- */
-router.get('/policy/:policyId', (req, res) => {
+// Get all role IDs that have a specific policy
+router.get('/policy/:policyId', async (req, res) => {
   const { policyId } = req.params;
 
-  const stmt = `
-    SELECT role_id FROM role_policies WHERE policy_id = ?
-  `;
+  try {
+    const entries = await RolePolicy.findAll({
+      where: { policy_id: policyId },
+      attributes: ['role_id']
+    });
 
-  db.all(stmt, [policyId], (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: 'Failed to fetch roles for policy' });
-    }
-
-    res.json(rows); // returns [{ role_id: '1' }, ...]
-  });
+    res.json(entries);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch roles for policy' });
+  }
 });
 
-/**
- * Detach a policy from a role
- */
-router.delete('/', (req, res) => {
+// Detach policy from role
+router.delete('/', async (req, res) => {
   const { roleId, policyId } = req.body;
 
   if (!roleId || !policyId) {
     return res.status(400).json({ error: 'roleId and policyId are required' });
   }
 
-  const stmt = db.prepare(`
-    DELETE FROM role_policies WHERE role_id = ? AND policy_id = ?
-  `);
+  try {
+    const deleted = await RolePolicy.destroy({
+      where: { role_id: roleId, policy_id: policyId }
+    });
 
-  stmt.run(roleId, policyId, function (err) {
-    if (err) {
-      return res.status(500).json({ error: 'Failed to detach policy from role' });
-    }
-
-    if (this.changes === 0) {
+    if (deleted === 0) {
       return res.status(404).json({ error: 'Role-policy pair not found' });
     }
 
     res.json({ message: 'Policy detached from role' });
-  });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to detach policy from role' });
+  }
 });
 
-/**
- * Optional: Get all role-policy mappings
- */
-router.get('/', (req, res) => {
-  const stmt = `
-    SELECT role_id, policy_id FROM role_policies
-  `;
+// Get all role-policy mappings
+router.get('/', async (req, res) => {
+  try {
+    const mappings = await RolePolicy.findAll({
+      attributes: ['role_id', 'policy_id']
+    });
 
-  db.all(stmt, [], (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: 'Failed to fetch role-policy mappings' });
-    }
-
-    res.json(rows); // returns list of role_id and policy_id pairs
-  });
+    res.json(mappings);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch role-policy mappings' });
+  }
 });
 
 module.exports = router;

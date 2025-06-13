@@ -1,179 +1,111 @@
+// routes/auth.js (Sequelize version)
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const db = require('../database/db');
-const { getAttributes } = require('../services/user');
 const router = express.Router();
 const authenticateToken = require('../middleware/auth');
+const { User, Role, UserAttribute } = require('../models');
 
+// Register
 router.post('/register', async (req, res) => {
-    const { username, password, roleId } = req.body;
-
+  const { username, password, roleId } = req.body;
+  try {
     if (roleId) {
-        db.get(`SELECT id FROM roles WHERE id = ?`, [roleId], (err, role) => {
-            if (err || !role) {
-                return res.status(400).json({ error: 'Invalid roleId' });
-            }
-            createUser(username, password, roleId, res);
-        });
-    } else {
-        createUser(username, password, null, res);
+      const role = await Role.findByPk(roleId);
+      if (!role) return res.status(400).json({ error: 'Invalid roleId' });
     }
+    const user = await User.create({ username, password, roleId });
+    res.status(201).json({ id: user.id, username: user.username, roleId: user.roleId });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'User already exists or DB error' });
+  }
 });
 
-router.delete('/:id', authenticateToken, (req, res) => {
-    const { id } = req.params;
+// Delete user
+router.delete('/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const canDelete = req.userContext.ability.can('delete', { __type: 'user', id });
+  if (!canDelete) return res.status(403).json({ error: 'Not allowed to delete' });
 
-    const canDelete = req.userContext.ability.can('delete', { __type: 'user', id });
-
-    if (!canDelete) {
-        return res.status(403).json({ error: 'Not allowed to delete' });
-    }
-
-
-
-    db.run(`DELETE FROM users WHERE id = ?`, [id], function (err) {
-        if (err) {
-            return res.status(500).json({ error: 'DB error while deleting user' });
-        }
-
-        if (this.changes === 0) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        res.json({ message: 'User deleted', userId: id });
-    });
+  const deleted = await User.destroy({ where: { id } });
+  if (!deleted) return res.status(404).json({ error: 'User not found' });
+  res.json({ message: 'User deleted', userId: id });
 });
 
-
-
-function createUser(username, password, roleId, res) {
-    db.run(
-        `INSERT INTO users(username, password, role_id) VALUES(?, ?, ?)`,
-        [username, password, roleId],
-        function (err) {
-            if (err) {
-                return res.status(500).json({ error: 'User already exists or DB error' });
-            }
-            res.status(201).json({ id: this.lastID, username, roleId });
-        }
-    );
-}
-
-router.post('/login', (req, res) => {
-    const { username, password } = req.body;
-
-    db.get(`SELECT * FROM users WHERE username = ?`, [username], (err, user) => {
-        if (err || !user) {
-            return res.status(401).json({ error: 'Invalid credentials' });
-        }
-        if (password !== user.password) {
-            return res.status(401).json({ error: 'Invalid credentials' });
-        }
-
-        const token = jwt.sign(
-            { id: user.id, username: user.username, role_id: user.role_id },
-            process.env.JWT_SECRET,
-            { expiresIn: '1h' }
-        );
-
-        res.json({ token });
-    });
+// Login
+router.post('/login', async (req, res) => {
+  const { username, password } = req.body;
+  const user = await User.findOne({ where: { username } });
+  if (!user || user.password !== password) {
+    return res.status(401).json({ error: 'Invalid credentials' });
+  }
+  const token = jwt.sign({ id: user.id, username: user.username, role_id: user.roleId }, process.env.JWT_SECRET, {
+    expiresIn: '1h'
+  });
+  res.json({ token });
 });
 
+// Update user role
+router.put('/:id/role', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { roleId } = req.body;
+  if (!roleId) return res.status(400).json({ error: 'roleId required' });
 
+  const role = await Role.findByPk(roleId);
+  if (!role) return res.status(400).json({ error: 'Invalid roleId' });
 
-router.put('/:id/role', authenticateToken, (req, res) => {
-    const { id } = req.params;
-    const { roleId } = req.body;
+  const [updated] = await User.update({ roleId }, { where: { id } });
+  if (!updated) return res.status(404).json({ error: 'User not found' });
 
-    if (!roleId) return res.status(400).json({ error: 'roleId required' });
-
-    db.get(`SELECT id FROM roles WHERE id = ?`, [roleId], (err, role) => {
-        if (err || !role) {
-            return res.status(400).json({ error: 'Invalid roleId' });
-        }
-
-        db.run(`UPDATE users SET role_id = ? WHERE id = ?`, [roleId, id], function (err) {
-            if (err) return res.status(500).json({ error: 'DB error' });
-            if (this.changes === 0) return res.status(404).json({ error: 'User not found' });
-
-            res.json({ message: 'Role updated', userId: id, roleId });
-        });
-    });
+  res.json({ message: 'Role updated', userId: id, roleId });
 });
-
 
 // Upsert user attributes
-router.post('/:id/attributes', authenticateToken, (req, res) => {
-    const { region, department } = req.body;
-    const { id: userId } = req.params;
+router.post('/:id/attributes', authenticateToken, async (req, res) => {
+  const { region, department } = req.body;
+  const { id: userId } = req.params;
 
-    db.get(`SELECT id FROM users WHERE id = ?`, [userId], (err, user) => {
-        if (err || !user) {
-            return res.status(404).json({ error: 'User not found' });
-        }
+  const user = await User.findByPk(userId);
+  if (!user) return res.status(404).json({ error: 'User not found' });
 
-        const canUpdateUser = req.userContext.ability.can('update', { __type: 'user', ...user, id: String(user.id) });
+  const canUpdateUser = req.userContext.ability.can('update', { __type: 'user', ...user.toJSON(), id: String(user.id) });
+  if (!canUpdateUser) return res.status(403).json({ error: 'Not allowed to update user' });
 
-        if (!canUpdateUser) {
-            return res.status(403).json({ error: 'Not allowed to update user' });
-        }
-
-        db.run(`
-        INSERT INTO user_attributes (user_id, region, department)
-        VALUES (?, ?, ?)
-        ON CONFLICT(user_id) DO UPDATE SET region = excluded.region, department = excluded.department
-      `, [userId, region, department], function (err) {
-            if (err) {
-                return res.status(500).json({ error: 'DB error' });
-            }
-
-            res.json({ message: 'Attributes saved', userId, region, department });
-        });
-    });
+  await UserAttribute.upsert({ user_id: userId, region, department });
+  res.json({ message: 'Attributes saved', userId, region, department });
 });
 
-
-
-// GET /auth/:id/attributes
+// Get user attributes
 router.get('/:id/attributes', authenticateToken, async (req, res) => {
-    try {
-        const { id: userId } = req.params;
+  try {
+    const { id: userId } = req.params;
+    const attributes = await UserAttribute.findOne({ where: { user_id: userId } });
+    if (!attributes) return res.status(404).json({ error: 'Attributes not found' });
+    res.json(attributes);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
-        const attributes = await getAttributes(userId);
+// Get permissions
+router.get('/permissions', authenticateToken, (req, res) => {
+  res.json({ success: 'ok' });
+});
 
-        res.json(attributes);
-    } catch (err) {
-        res.status(500).json({ error: err });
+// Get all users
+router.get('/all-users', authenticateToken, async (req, res) => {
+  try {
+    let users = await User.findAll({ attributes: ['id', 'username', 'password', 'roleId'] });
+    const canViewAllUsers = req.userContext.ability.can('read', { __type: 'users.list' });
+
+    if (!canViewAllUsers) {
+      users = users.filter((user) => req.userContext.ability.can('read', { __type: 'users.list', ...user.toJSON() }));
     }
 
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: 'DB error' });
+  }
 });
-
-
-router.get('/permissions', authenticateToken, (req, res) => {
-        res.json({success: 'ok'})
-});
-
-
-router.get('/all-users', authenticateToken, (req, res) => {
-    db.all(`SELECT id, username, password, role_id FROM users`, [], (err, rows) => {
-
-        if (err) {
-            return res.status(500).json({ error: 'DB error' });
-        }
-
-        // CHALLENGE:MG MUTLIPLE CHECKS AND ALSO NOT ABLE TO FETCH ONLY ROWS REQUESTED
-        const canViewAllUsers = req.userContext.ability.can('read', { __type: 'users.list' });
-
-        if (!canViewAllUsers) {
-            rows = rows.filter((row) => req.userContext.ability.can('read', { __type: 'users.list', ...row }))
-        }
-
-        res.json(rows)
-    });
-});
-
-
-
 
 module.exports = router;

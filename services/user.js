@@ -1,28 +1,21 @@
-const db = require("../database/db");
+const {UserAttributes} = require("../models");
 
-function getAttributes(userId) {
-    return new Promise((resolve, reject) => {
-        db.get(`SELECT region, department FROM user_attributes WHERE user_id = ?`, [userId], (err, row) => {
-            if (err) {
-                return reject('DB error')
-            }
+async function getAttributes(userId) {
+  const row = await UserAttributes.findOne({ where: { user_id: userId } });
 
-            if (!row) {
-                return reject('Attributes not found');
-            }
+  if (!row) {
+    throw new Error('Attributes not found');
+  }
 
-            resolve({ userId, ...row });
-        });
-    })
+  return { userId, ...row.toJSON() };
 }
-
 
 async function getAttributesSafely(userId) {
-    try {
-        return await getAttributes(userId)
-    } catch (err) {
-        return {}
-    }
+  try {
+    return await getAttributes(userId);
+  } catch (err) {
+    return {};
+  }
 }
 
-module.exports = { getAttributes , getAttributesSafely}
+module.exports = { getAttributes, getAttributesSafely };
