@@ -1,7 +1,8 @@
-const {UserAttributes} = require("../models");
+const {UserAttribute} = require("../models");
 
 async function getAttributes(userId) {
-  const row = await UserAttributes.findOne({ where: { user_id: userId } });
+
+  const row = await UserAttribute.findOne({ where: { user_id: userId } });
 
   if (!row) {
     throw new Error('Attributes not found');
@@ -14,6 +15,7 @@ async function getAttributesSafely(userId) {
   try {
     return await getAttributes(userId);
   } catch (err) {
+    console.log('[error fetching user attributes]', err)
     return {};
   }
 }

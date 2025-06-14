@@ -6,6 +6,7 @@ const authenticateToken = require('../middleware/auth');
 const attachPermissions = require('../middleware/permission')
 const { getPermissionsForUser } = require('../services/permissions')
 const { User, Role, UserAttribute } = require('../models');
+const { toSequelizeQuery } = require('../casl/toSequilizeQuery');
 
 // Register
 router.post('/register', async (req, res) => {
@@ -102,15 +103,17 @@ router.get('/permissions', authenticateToken, async (req, res) => {
 // Get all users
 router.get('/all-users', authenticateToken, attachPermissions, async (req, res) => {
     try {
-        let users = await User.findAll({ attributes: ['id', 'username', 'password', 'roleId'] });
-        const canViewAllUsers = req.userContext.ability.can('read', { __type: 'users.list' });
+        const query = toSequelizeQuery(req.userContext.ability, 'users.list', 'read')
 
-        if (!canViewAllUsers) {
-            users = users.filter((user) => req.userContext.ability.can('read', { __type: 'users.list', ...user.toJSON() }));
-        }
+        const users = await User.findAll({
+            attributes: ['id', 'username', 'password', 'roleId'],
+            where: query,
+        });
+
 
         res.json(users);
     } catch (err) {
+        console.error(err)
         res.status(500).json({ error: 'DB error' });
     }
 });
