@@ -103,17 +103,19 @@ router.get('/permissions', authenticateToken, async (req, res) => {
 // Get all users
 router.get('/all-users', authenticateToken, attachPermissions, async (req, res) => {
     try {
-        const query = toSequelizeQuery(req.userContext.ability, 'users.list', 'read')
+        const query = toSequelizeQuery(req.userContext.ability, 'users.list', 'read');
+        const attributeQuery = toSequelizeQuery(req.userContext.ability, 'users.attributes', 'read');
 
+      
         const users = await User.findAll({
             attributes: ['id', 'username', 'password', 'roleId'],
-            where: query, 
+           where: query, 
             include: [
               {
                 model: UserAttribute,
                 as: 'attributes',
-                required: false, 
                 attributes: ['department', 'region'],
+                where: attributeQuery
               },
             ],
           });
