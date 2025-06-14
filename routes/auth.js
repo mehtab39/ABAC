@@ -112,6 +112,7 @@ router.get('/all-users', authenticateToken, attachPermissions, async (req, res) 
         const users = await User.findAll({
             attributes: ['id', 'username', 'password', 'roleId'],
             where: query,
+            logging: console.log,
             include: [
                 {
                     model: UserAttribute,
