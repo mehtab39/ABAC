@@ -59,7 +59,7 @@ function rulesToSequelizeQuery(input) {
 
 
 function ruleToSequelize(rule) {
-    return rule.inverted ? { $not: rule.conditions } : rule.conditions;
+    return rule.conditions;
 }
 
 function toSequelizeQuery(ability, subject, action) {

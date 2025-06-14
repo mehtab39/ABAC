@@ -62,7 +62,6 @@ async function getPolicyDetails(policyIds) {
                 action: perm.action,
                 subject: perm.entity,
                 conditions: rule.conditions,
-                inverted: rule.inverted,
                 reason: rule.reason,
             };
         }).filter(Boolean),
@@ -125,7 +124,6 @@ function transformPolicesToCASLLikePermissions(policies, attributes) {
             action: rule.action,
             subject: rule.subject,
             conditions: utils.interpolate(rule.conditions, attributes),
-            inverted: rule.inverted,
         }))
     );
 }

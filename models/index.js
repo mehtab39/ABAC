@@ -147,7 +147,7 @@ const Permission = sequelize.define('Permission', {
 Role.hasMany(User, { foreignKey: 'roleId' });
 User.belongsTo(Role, { foreignKey: 'roleId' });
 
-User.hasOne(UserAttribute, { foreignKey: 'user_id' });
+User.hasOne(UserAttribute, { foreignKey: 'user_id',  as: 'attributes'  });
 UserAttribute.belongsTo(User, { foreignKey: 'user_id' });
 
 Role.belongsToMany(Policy, {

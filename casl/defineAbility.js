@@ -2,11 +2,10 @@ const { AbilityBuilder, createMongoAbility } = require('@casl/ability');
 
 function defineAbilityFor(permissions = []) {
 
-    const { can, cannot, build } = new AbilityBuilder(createMongoAbility);
+    const { can, build } = new AbilityBuilder(createMongoAbility);
 
     for (const permission of permissions) {
-        const method = permission.inverted ? cannot : can;
-        method.call(null, permission.action, permission.subject, undefined, permission.conditions);
+        can(permission.action, permission.subject, undefined, permission.conditions);
     }
 
     return build({
