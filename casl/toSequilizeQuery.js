@@ -12,14 +12,11 @@ function rulesToSequelizeQuery(input) {
         for (const key in input) {
             const value = input[key];
 
+
             if (key.startsWith('$')) {
                 const opKey = Op[key.slice(1)];
 
-                if (!opKey) {
-                    console.warn(`Unsupported operator "${key}"`);
-                    continue;
-                }
-
+    
                 // Special handling for known complex operators
                 switch (key) {
                     case '$regex':
@@ -59,12 +56,14 @@ function rulesToSequelizeQuery(input) {
 
 
 function ruleToSequelize(rule) {
-    return rule.conditions;
+    return Object.keys(rule.conditions).length > 0 ? rule.conditions : null;
 }
 
 function toSequelizeQuery(ability, subject, action) {
     const query = rulesToQuery(ability, action, subject, ruleToSequelize);
-    return query === null ? query : rulesToSequelizeQuery(query);
+    if(query.$or.length === 0 || (query.$or[0] === null)) return null;
+    const result =  query === null ? query : rulesToSequelizeQuery(query);
+    return result;
 }
 
 
