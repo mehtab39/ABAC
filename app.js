@@ -13,12 +13,13 @@ const permissionRoutes = require('./routes/permissions');
 const policiesRoutes = require('./routes/policies');
 const rolesRoutes = require('./routes/roles');
 const rolePoliciesRoutes = require('./routes/rolePolicies');
+const simulatorRoute = require('./routes/simulator')
 app.use('/auth', authRoutes);
 app.use('/permissions', permissionRoutes);
 app.use('/policies', policiesRoutes);
 app.use('/roles', rolesRoutes);
 app.use('/role-policies', rolePoliciesRoutes);
-
+app.use('/simulator', simulatorRoute)
 
 
 app.listen(process.env.PORT, () => {
