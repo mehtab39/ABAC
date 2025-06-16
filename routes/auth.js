@@ -7,7 +7,6 @@ const attachPermissions = require('../middleware/permission')
 const { getPermissionsForUser } = require('../services/permissions')
 const { User, Role, UserAttribute } = require('../models');
 const { toSequelizeQuery } = require('../casl/toSequilizeQuery');
-const { getCustomConditions } = require('../casl/utils');
 
 // Register
 router.post('/register', async (req, res) => {
@@ -112,9 +111,7 @@ router.get('/all-users', authenticateToken, attachPermissions, async (req, res) 
         }
 
         const query = toSequelizeQuery(ability, 'users.list', 'read');
-        const joinHints = getCustomConditions(ability, 'users.list', 'read', '$joinHints');
         const attributeQuery = toSequelizeQuery(ability, 'users.attributes', 'read');
-        const attributeRightJoin = joinHints && joinHints.attributes && joinHints.attributes.required === true;
 
         const users = await User.findAll({
             attributes: ['id', 'username', 'password', 'roleId'],
@@ -126,7 +123,7 @@ router.get('/all-users', authenticateToken, attachPermissions, async (req, res) 
                     as: 'attributes',
                     attributes: ['department', 'region'],
                     where: attributeQuery,
-                    required: attributeRightJoin
+                    required: false
                 },
             ],
         });
