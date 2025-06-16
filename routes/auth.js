@@ -104,9 +104,15 @@ router.get('/permissions', authenticateToken, async (req, res) => {
 // Get all users
 router.get('/all-users', authenticateToken, attachPermissions, async (req, res) => {
     try {
-        const query = toSequelizeQuery(req.userContext.ability, 'users.list', 'read');
-        const attributeQuery = toSequelizeQuery(req.userContext.ability, 'users.attributes', 'read');
-        const joinHints = getCustomConditions(req.userContext.ability, 'users.list', 'read', '$joinHints');
+        const ability = req.userContext.ability;
+        const hasAccess = ability.can('users.list', 'read');
+
+        if(!hasAccess){
+             return res.status(403).json({ error: 'Not allowed to view user list' });
+        }
+        const query = toSequelizeQuery(ability, 'users.list', 'read');
+        const attributeQuery = toSequelizeQuery(ability, 'users.attributes', 'read');
+        const joinHints = getCustomConditions(ability, 'users.list', 'read', '$joinHints');
         const attributeRightJoin = joinHints && joinHints.attributes && joinHints.attributes.required === true;
 
         const users = await User.findAll({

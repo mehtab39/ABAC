@@ -65,8 +65,8 @@ function ruleToSequelize(rule) {
 
 function toSequelizeQuery(ability, subject, action) {
     const query = rulesToQuery(ability, action, subject, ruleToSequelize);
-    if (query.$or.length === 0 || (query.$or[0] === null)) return null;
-    const result = query === null ? query : rulesToSequelizeQuery(query);
+    if (query === null || query.$or.length === 0 || (query.$or[0] === null)) return null;
+    const result = rulesToSequelizeQuery(query);
     return result;
 }
 
