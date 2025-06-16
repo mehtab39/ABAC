@@ -24,7 +24,7 @@ router.post('/', authenticateToken,attachPermissions,  async (req, res) => {
         const allowed = ability.can(action, {__type: subject, ...(resource || {})});
 
 
-        const sqlQuery = toSequelizeQuery(ability, subject, action);
+        const sqlQuery = toSequelizeQuery(ability, action, subject);
 
         return res.json({
             allowed,
