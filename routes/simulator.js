@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const authenticateToken = require('../middleware/auth');
-const attachPermissions = require('../middleware/permission')
+const attachPermissions = require('../middleware/permission');
+const { toSequelizeQuery, serializeSequelizeQuery } = require('../casl/toSequilizeQuery');
+const { getCustomConditions } = require('../casl/utils');
 
 
 router.post('/', authenticateToken,attachPermissions,  async (req, res) => {
@@ -22,9 +24,15 @@ router.post('/', authenticateToken,attachPermissions,  async (req, res) => {
 
         const allowed = ability.can(action, {__type: subject, ...(resource || {})});
 
+
+        const sqlQuery = toSequelizeQuery(ability, subject, action);
+        const joinHints = getCustomConditions(ability, subject, action, '$joinHints');
+
         return res.json({
             allowed,
             reason: allowed ? 'Permission granted' : 'Permission denied',
+            sqlQuery: serializeSequelizeQuery(sqlQuery),
+            joinHints,
             evaluated: {
                 action,
                 subject,
