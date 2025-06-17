@@ -4,8 +4,8 @@ const jwt = require('jsonwebtoken');
 const router = express.Router();
 const authenticateToken = require('../middleware/auth');
 const attachPermissions = require('../middleware/permission')
-const { getPermissionsForUser, getRulesFromRoleId } = require('../services/permissions')
-const { User, Role, UserAttribute } = require('../models');
+const { getPermissionsForUser, getRules } = require('../services/permissions')
+const { User, Role } = require('../models');
 const { getRoleIdFromUserId } = require('../services/user');
 
 // Register
@@ -63,32 +63,9 @@ router.put('/:id/role', authenticateToken, attachPermissions, async (req, res) =
     res.json({ message: 'Role updated', userId: id, roleId });
 });
 
-// Upsert user attributes
-router.post('/:id/attributes', authenticateToken, attachPermissions, async (req, res) => {
-    const { region, department } = req.body;
-    const { id: userId } = req.params;
 
-    const user = await User.findByPk(userId);
-    if (!user) return res.status(404).json({ error: 'User not found' });
 
-    const canUpdateUser = req.userContext.ability.can('update', { __type: 'user', ...user.toJSON(), id: String(user.id) });
-    if (!canUpdateUser) return res.status(403).json({ error: 'Not allowed to update user' });
 
-    await UserAttribute.upsert({ user_id: userId, region, department });
-    res.json({ message: 'Attributes saved', userId, region, department });
-});
-
-// Get user attributes
-router.get('/:id/attributes', authenticateToken, attachPermissions, async (req, res) => {
-    try {
-        const { id: userId } = req.params;
-        const attributes = await UserAttribute.findOne({ where: { user_id: userId } });
-        if (!attributes) return res.status(404).json({ error: 'Attributes not found' });
-        res.json(attributes);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
 
 // Get permissions
 router.get('/permissions', authenticateToken, async (req, res) => {
@@ -125,7 +102,7 @@ router.get('/rules', authenticateToken, async (req, res) => {
         }
     
     
-        const rules = await getRulesFromRoleId(roleId);
+        const rules = await getRules(userId, roleId);
     
         return res.json({
             rules: rules,
@@ -149,21 +126,11 @@ router.get('/all-users', authenticateToken, attachPermissions, async (req, res) 
         // }
 
         // const query = toSequelizeQuery(ability,  'read', 'users.list');
-        // const attributeQuery = toSequelizeQuery(ability,'read',  'users.attributes');
 
         const users = await User.findAll({
             attributes: ['id', 'username', 'password', 'roleId'],
            // where: query,
             logging: console.log,
-            include: [
-                {
-                    model: UserAttribute,
-                    as: 'attributes',
-                    attributes: ['department', 'region'],
-                    //where: attributeQuery,
-                    required: false
-                },
-            ],
         });
 
 

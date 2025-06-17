@@ -47,23 +47,6 @@ const User = sequelize.define('User', {
   timestamps: false,
 });
 
-// UserAttribute
-const UserAttribute = sequelize.define('UserAttribute', {
-  user_id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    references: {
-      model: User,
-      key: 'id',
-    },
-  },
-  region: DataTypes.STRING,
-  department: DataTypes.STRING,
-}, {
-  tableName: 'user_attributes',
-  timestamps: false,
-});
-
 // Policy
 const Policy = sequelize.define('Policy', {
   id: {
@@ -95,26 +78,42 @@ const Policy = sequelize.define('Policy', {
   timestamps: false,
 });
 
-// RolePolicy
-const RolePolicy = sequelize.define('RolePolicy', {
-  role_id: {
+const PolicyAssignment = sequelize.define('PolicyAssignment', {
+  id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
-    references: {
-      model: Role,
-      key: 'id',
-    },
+    autoIncrement: true,
   },
   policy_id: {
     type: DataTypes.STRING,
-    primaryKey: true,
+    allowNull: false,
     references: {
       model: Policy,
       key: 'id',
     },
   },
+  user_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: User,
+      key: 'id',
+    },
+  },
+  role_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: Role,
+      key: 'id',
+    },
+  },
+  assigned_at: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW,
+  },
 }, {
-  tableName: 'role_policies',
+  tableName: 'policy_assignments',
   timestamps: false,
 });
 
@@ -148,26 +147,21 @@ User.belongsTo(Role, { foreignKey: 'roleId' });
 Role.hasMany(User, { foreignKey: 'roleId' });
 
 
-User.hasOne(UserAttribute, { foreignKey: 'user_id',  as: 'attributes'  });
-UserAttribute.belongsTo(User, { foreignKey: 'user_id' });
 
-Role.belongsToMany(Policy, {
-  through: RolePolicy,
-  foreignKey: 'role_id',
-  otherKey: 'policy_id',
-});
-Policy.belongsToMany(Role, {
-  through: RolePolicy,
-  foreignKey: 'policy_id',
-  otherKey: 'role_id',
-});
+User.hasMany(PolicyAssignment, { foreignKey: 'user_id' });
+Role.hasMany(PolicyAssignment, { foreignKey: 'role_id' });
+Policy.hasMany(PolicyAssignment, { foreignKey: 'policy_id' });
+
+PolicyAssignment.belongsTo(User, { foreignKey: 'user_id' });
+PolicyAssignment.belongsTo(Role, { foreignKey: 'role_id' });
+PolicyAssignment.belongsTo(Policy, { foreignKey: 'policy_id' });
+
 
 module.exports = {
   sequelize,
   Role,
+  PolicyAssignment,
   User,
-  UserAttribute,
   Policy,
-  RolePolicy,
   Permission
 };
