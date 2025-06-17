@@ -11,7 +11,7 @@ router.post('/', async (req, res) => {
         return res.status(400).json({ error: 'Entity and action required' });
     }
 
-    const key = `${entity}.${action}`;
+    const key = `${action}:${entity}`;
 
     try {
         await Permission.create({ key, entity, action, description });
