@@ -7,7 +7,7 @@ const interpolateString = (text, context) => {
       if (typeof value[prop] !== "undefined") {
         value = value[prop];
       } else {
-        return _; // return original placeholder if not found
+        return _; 
       }
     }
     return value;
