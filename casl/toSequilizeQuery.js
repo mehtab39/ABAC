@@ -72,38 +72,8 @@ function toSequelizeQuery(ability,  action, subject) {
 
 
 
-const OpMap = Object.entries(Op).reduce((acc, [key, val]) => {
-  acc[val] = `$${key.toLowerCase()}`; // Symbol(Op.or) => "$or"
-  return acc;
-}, {});
-
-function serializeSequelizeQuery(obj) {
-  if (Array.isArray(obj)) {
-    return obj.map(serializeSequelizeQuery);
-  }
-
-  if (obj !== null && typeof obj === 'object') {
-    const newObj = {};
-    for (const [key, val] of Object.entries(obj)) {
-      newObj[key] = serializeSequelizeQuery(val);
-    }
-
-    // Handle symbol keys like Op.or
-    Object.getOwnPropertySymbols(obj).forEach(symbol => {
-      const opName = OpMap[symbol] || symbol.toString();
-      newObj[opName] = serializeSequelizeQuery(obj[symbol]);
-    });
-
-    return newObj;
-  }
-
-  return obj;
-}
-
-
 
 
 module.exports = {
     toSequelizeQuery,
-    serializeSequelizeQuery
 };
