@@ -5,7 +5,7 @@ const utils = require('../utils');
 
 async function getPoliciesForUserContext({ userId, roleId }) {
   const userPolicyIds = userId ? await getPolicyIdsCached({ userId }) : [];
-  const rolePolicyIds = await getPolicyIdsCached({ roleId });
+  const rolePolicyIds = roleId ? await getPolicyIdsCached({ roleId }) : [];
 
   const allPolicyIds = [...new Set([...userPolicyIds, ...rolePolicyIds])];
   return await getPolicyDetails(allPolicyIds);
@@ -126,6 +126,7 @@ function transformPolicesToCASLLikePermissions(policies, attributes) {
       action: rule.action,
       subject: rule.subject,
       conditions: utils.interpolate(rule.conditions, attributes),
+      inverse: rule.inverse || false, 
     }))
   );
 }
@@ -146,10 +147,10 @@ async function getPermissionsForUser(user) {
         subject: perm.entity,
         conditions: rule.conditions,
         reason: rule.reason,
+        inverse: rule.inverse || false,
       };
     }).filter(Boolean),
   }));
-
 
   return transformPolicesToCASLLikePermissions(policies, {
     user: user,
