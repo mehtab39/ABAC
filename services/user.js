@@ -1,23 +1,28 @@
-const {UserAttribute} = require("../models");
+const {UserAttribute, User} = require("../models");
 
 async function getAttributes(userId) {
 
-  const row = await UserAttribute.findOne({ where: { user_id: userId } });
+  const row = await UserAttribute.findOne({ where: { user_id: userId } }) ;
 
-  if (!row) {
-    throw new Error('Attributes not found');
-  }
-
-  return { userId, ...row.toJSON() };
+  return { userId, ...row?.toJSON() };
 }
 
 async function getAttributesSafely(userId) {
   try {
-    return await getAttributes(userId);
+    const response =  await getAttributes(userId);
+    return response;
   } catch (err) {
     console.log('[error fetching user attributes]', err)
     return {};
   }
 }
 
-module.exports = { getAttributes, getAttributesSafely };
+async function  getRoleIdFromUserId(userId) {
+  const user = await User.findOne({ where: { id: userId } });
+  if(!user){
+     throw new Error('user not found');
+  }
+  return user.roleId;
+}
+
+module.exports = { getAttributes, getAttributesSafely, getRoleIdFromUserId };

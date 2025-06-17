@@ -53,19 +53,10 @@ async function getPolicyDetails(policyIds) {
 
     const permissionMap = await getPermissionMap([...permissionKeys]);
 
-    return allPolicies.map(policy => ({
-        ...policy,
-        rules: (policy.rules || []).map(rule => {
-            const perm = permissionMap[rule.permissionKey];
-            if (!perm) return null;
-            return {
-                action: perm.action,
-                subject: perm.entity,
-                conditions: rule.conditions,
-                reason: rule.reason,
-            };
-        }).filter(Boolean),
-    }));
+    return {
+        permissionMap,
+        allPolicies,
+    }
 }
 
 async function fetchPoliciesFromDB(policyIds) {
@@ -129,7 +120,23 @@ function transformPolicesToCASLLikePermissions(policies, attributes) {
 }
 
 async function getPermissionsForUser(user) {
-    const policies = await getPolicies(user.role_id);
+    const {permissionMap,
+        allPolicies,} = await getPolicies(user.role_id);
+
+    const policies = allPolicies.map(policy => ({
+            ...policy,
+            rules: (policy.rules || []).map(rule => {
+                const perm = permissionMap[rule.permissionKey];
+                if (!perm) return null;
+                return {
+                    action: perm.action,
+                    subject: perm.entity,
+                    conditions: rule.conditions,
+                    reason: rule.reason,
+                };
+            }).filter(Boolean),
+        }));
+    
     const userAttributes = await getAttributesSafely(user.id);
     return transformPolicesToCASLLikePermissions(policies, {
         user: { ...user, ...userAttributes },
@@ -137,8 +144,21 @@ async function getPermissionsForUser(user) {
     });
 }
 
+
+async function getRulesFromRoleId(roleId) {
+    const policies = await getPolicies(roleId);
+    return policies.allPolicies.flatMap(policy =>
+      (policy.rules || []).flatMap(rule => {
+        const perm = policies.permissionMap[rule.permissionKey];
+        return perm ? [perm] : [];
+      })
+    );
+  }
+  
+
 module.exports = {
     getPolicies,
+    getRulesFromRoleId,
     transformPolicesToCASLLikePermissions,
     getPermissionsForUser
 };
