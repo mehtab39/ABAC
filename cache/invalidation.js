@@ -1,9 +1,6 @@
 const redisClient = require('./redis');
 
-/**
- * Invalidate cache for a specific policy
- * @param {string} policyId
- */
+
 async function invalidatePolicyCache(policyId) {
   if (!policyId) return;
   try {
@@ -13,18 +10,6 @@ async function invalidatePolicyCache(policyId) {
   }
 }
 
-/**
- * Invalidate all permissions derived from a role's policies
- * @param {number|string} roleId
- */
-async function invalidatePermissionsForRole(roleId) {
-  if (!roleId) return;
-  try {
-    await redisClient.del(`role:${roleId}:policyIds`);
-  } catch (err) {
-    console.error(`Failed to invalidate role permission cache for ${roleId}:`, err);
-  }
-}
 
 /**
  * Invalidate all permissions derived from a user’s policies
@@ -54,7 +39,6 @@ async function invalidatePermissionKey(permissionKey) {
 
 module.exports = {
   invalidatePolicyCache,
-  invalidatePermissionsForRole,
   invalidatePermissionsForUser,
   invalidatePermissionKey,
 };

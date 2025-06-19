@@ -5,7 +5,7 @@ const authenticateToken = require('../middleware/auth');
 const attachPermissions = require('../middleware/permission')
 const { getPermissionsForUser, getRules } = require('../services/permissions')
 const { User } = require('../models');
-const { getRoleIdFromUserId } = require('../services/user');
+
 
 // Get permissions
 router.get('/permissions', authenticateToken, async (req, res) => {
@@ -24,29 +24,15 @@ router.get('/rules', authenticateToken, async (req, res) => {
     try {
         const userId = req.query.user_id;
 
-        let roleId = req.query.role_id;
-
-        if (userId === undefined && roleId === undefined) {
-            return res.status(401).json({ error: 'Either user id or role id is necessary' });
+        if (userId === undefined) {
+            return res.status(401).json({ error: 'Either user id is necessary' });
         }
 
-
-
-        if (roleId === undefined) {
-            roleId = await getRoleIdFromUserId(userId);
-        }
-
-
-        if (!roleId) {
-            return res.status(401).json({ error: 'Role not found' });
-        }
-
-        const rules = await getRules(userId, roleId);
+        const rules = await getRules(userId);
 
         return res.json({
             rules: rules,
             userId: userId,
-            roleId: roleId
         });
     } catch (err) {
         return res.status(500).json({ message: 'something went wrong' });
@@ -67,7 +53,7 @@ router.get('/all-users', authenticateToken, attachPermissions, async (req, res) 
         // const query = toSequelizeQuery(ability,  'read', 'users.list');
 
         const users = await User.findAll({
-            attributes: ['id', 'username', 'roleId'],
+            attributes: ['id', 'username'],
            // where: query,
         });
 

@@ -3,23 +3,22 @@ const { Op } = require('sequelize');
 const { Permission, Policy, PolicyAssignment } = require('../models');
 const utils = require('../utils');
 
-async function getPoliciesForUserContext({ userId, roleId }) {
+async function getPoliciesForUserContext({ userId }) {
   const userPolicyIds = userId ? await getPolicyIdsCached({ userId }) : [];
-  const rolePolicyIds = roleId ? await getPolicyIdsCached({ roleId }) : [];
 
-  const allPolicyIds = [...new Set([...userPolicyIds, ...rolePolicyIds])];
+  const allPolicyIds = [...new Set([...userPolicyIds])];
   return await getPolicyDetails(allPolicyIds);
 }
 
-async function getPolicyIdsCached({ userId, roleId }) {
-  const cacheKey = userId ? `user:${userId}:policyIds` : `role:${roleId}:policyIds`;
+async function getPolicyIdsCached({ userId }) {
+  const cacheKey = `user:${userId}:policyIds`;
   let policyIds;
 
   const cached = await redisClient.get(cacheKey);
   if (cached) {
     policyIds = JSON.parse(cached);
   } else {
-    const whereClause = userId ? { user_id: userId } : { role_id: roleId, user_id: null };
+    const whereClause =  {user_id: userId }
     const records = await PolicyAssignment.findAll({ where: whereClause });
     policyIds = records.map(r => r.policy_id);
 
@@ -134,7 +133,6 @@ function transformPolicesToCASLLikePermissions(policies, attributes) {
 async function getPermissionsForUser(user) {
   const { permissionMap, allPolicies } = await getPoliciesForUserContext({
     userId: user.id,
-    roleId: user.role_id,
   });
 
   const policies = allPolicies.map(policy => ({
@@ -158,8 +156,8 @@ async function getPermissionsForUser(user) {
   });
 }
 
-async function getRules(userId, roleId) {
-  const { permissionMap, allPolicies } = await getPoliciesForUserContext({ userId, roleId });
+async function getRules(userId) {
+  const { permissionMap, allPolicies } = await getPoliciesForUserContext({ userId });
 
   return allPolicies.flatMap(policy =>
     (policy.rules || []).flatMap(rule => {

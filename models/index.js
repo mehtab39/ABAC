@@ -1,22 +1,6 @@
 const sequelize = require('../database/db');
 const { DataTypes } = require('sequelize');
 
-// Role
-const Role = sequelize.define('Role', {
-  id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true,
-  },
-  name: {
-    type: DataTypes.STRING,
-    unique: true,
-    allowNull: false,
-  },
-}, {
-  tableName: 'roles',
-  timestamps: false,
-});
 
 // User
 const User = sequelize.define('User', {
@@ -30,14 +14,6 @@ const User = sequelize.define('User', {
     unique: true,
     allowNull: false,
   },
-  roleId: {
-    type: DataTypes.INTEGER,
-    references: {
-      model: Role,
-      key: 'id',
-    },
-    field: 'role_id',
-  }
 }, {
   tableName: 'users',
   timestamps: false,
@@ -96,14 +72,6 @@ const PolicyAssignment = sequelize.define('PolicyAssignment', {
       key: 'id',
     },
   },
-  role_id: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-    references: {
-      model: Role,
-      key: 'id',
-    },
-  },
   assigned_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,
@@ -139,23 +107,17 @@ const Permission = sequelize.define('Permission', {
 
 // Associations
 
-User.belongsTo(Role, { foreignKey: 'roleId' });
-Role.hasMany(User, { foreignKey: 'roleId' });
-
 
 
 User.hasMany(PolicyAssignment, { foreignKey: 'user_id' });
-Role.hasMany(PolicyAssignment, { foreignKey: 'role_id' });
 Policy.hasMany(PolicyAssignment, { foreignKey: 'policy_id' });
 
 PolicyAssignment.belongsTo(User, { foreignKey: 'user_id' });
-PolicyAssignment.belongsTo(Role, { foreignKey: 'role_id' });
 PolicyAssignment.belongsTo(Policy, { foreignKey: 'policy_id' });
 
 
 module.exports = {
   sequelize,
-  Role,
   PolicyAssignment,
   User,
   Policy,

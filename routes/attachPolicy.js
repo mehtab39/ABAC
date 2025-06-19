@@ -1,34 +1,26 @@
 const express = require('express');
 const router = express.Router();
 const { PolicyAssignment } = require('../models');
-const { invalidatePermissionsForRole, invalidatePermissionsForUser } = require('../cache/invalidation');
+const { invalidatePermissionsForUser } = require('../cache/invalidation');
 
-// Attach policy to role or user
+
 router.post('/', async (req, res) => {
-  const { roleId, userId, policyId } = req.body;
+  const { userId, policyId } = req.body;
 
-  if (!policyId || (!roleId && !userId)) {
-    return res.status(400).json({ error: 'policyId and either roleId or userId are required' });
-  }
-
-  if (roleId && userId) {
-    return res.status(400).json({ error: 'Only one of roleId or userId should be provided' });
+  if (!policyId || !userId) {
+    return res.status(400).json({ error: 'policyId and userId are required' });
   }
 
   try {
     const [entry, created] = await PolicyAssignment.findOrCreate({
-      where: { policy_id: policyId, role_id: roleId || null, user_id: userId || null }
+      where: { policy_id: policyId, user_id: userId || null }
     });
 
     if (!created) {
       return res.status(409).json({ error: 'Policy assignment already exists' });
     }
 
-    if (roleId) {
-      await invalidatePermissionsForRole(roleId);
-    } else if (userId) {
-      await invalidatePermissionsForUser(userId);
-    }
+    await invalidatePermissionsForUser(userId);
 
     res.status(201).json({ message: 'Policy assigned', id: entry.id });
   } catch (err) {
@@ -37,23 +29,17 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Detach policy from role or user
 router.delete('/', async (req, res) => {
-  const { roleId, userId, policyId } = req.body;
+  const { userId, policyId } = req.body;
 
-  if (!policyId || (!roleId && !userId)) {
-    return res.status(400).json({ error: 'policyId and either roleId or userId are required' });
-  }
-
-  if (roleId && userId) {
-    return res.status(400).json({ error: 'Only one of roleId or userId should be provided' });
+  if (!policyId || !userId) {
+    return res.status(400).json({ error: 'policyId and userId are required' });
   }
 
   try {
     const deleted = await PolicyAssignment.destroy({
       where: {
         policy_id: policyId,
-        role_id: roleId || null,
         user_id: userId || null
       }
     });
@@ -62,11 +48,7 @@ router.delete('/', async (req, res) => {
       return res.status(404).json({ error: 'Assignment not found' });
     }
 
-    if (roleId) {
-      await invalidatePermissionsForRole(roleId);
-    } else if (userId) {
-      await invalidatePermissionsForUser(userId);
-    }
+    await invalidatePermissionsForUser(userId);
 
     res.json({ message: 'Policy unassigned' });
   } catch (err) {
@@ -78,7 +60,7 @@ router.delete('/', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const assignments = await PolicyAssignment.findAll({
-      attributes: ['id', 'policy_id', 'role_id', 'user_id', 'assigned_at']
+      attributes: ['id', 'policy_id', 'user_id', 'assigned_at']
     });
     res.json(assignments);
   } catch (err) {
@@ -86,18 +68,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get all policy IDs for a role
-router.get('/role/:roleId', async (req, res) => {
-  try {
-    const entries = await PolicyAssignment.findAll({
-      where: { role_id: req.params.roleId },
-      attributes: ['policy_id']
-    });
-    res.json(entries);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch policies for role' });
-  }
-});
 
 // Get all policy IDs for a user
 router.get('/user/:userId', async (req, res) => {
@@ -112,12 +82,12 @@ router.get('/user/:userId', async (req, res) => {
   }
 });
 
-// Get all role/user assignments for a policy
+
 router.get('/policy/:policyId', async (req, res) => {
   try {
     const entries = await PolicyAssignment.findAll({
       where: { policy_id: req.params.policyId },
-      attributes: ['role_id', 'user_id']
+      attributes: ['user_id']
     });
     res.json(entries);
   } catch (err) {
